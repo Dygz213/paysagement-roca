@@ -18,8 +18,8 @@ const services = [
   "Autre"
 ];
 
-// ⚙️ REMPLACE PAR TON WEBHOOK URL GO HIGH LEVEL
-const GHL_WEBHOOK_URL = "https://services.leadconnectorhq.com/hooks/VOTRE_WEBHOOK_ID/webhook-trigger/VOTRE_TRIGGER_ID";
+const HUBSPOT_PORTAL_ID = "342967890";
+const HUBSPOT_FORM_ID = "c58f8bbf-2fe1-49d4-b3c4-495ec16e2d39";
 
 export default function SubmissionForm({ variant = "default" }) {
   const [formData, setFormData] = useState({
@@ -39,29 +39,41 @@ export default function SubmissionForm({ variant = "default" }) {
     setIsSubmitting(true);
     setError(null);
 
-    try {
-      await fetch(GHL_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors',
-        body: JSON.stringify({
-          firstName: formData.name.split(' ')[0] || formData.name,
-          lastName: formData.name.split(' ').slice(1).join(' ') || '',
-          phone: formData.phone,
-          email: formData.email,
-          address: formData.address,
-          service: formData.service_type,
-          message: formData.message,
-          source: 'Site Web - Formulaire',
-          tags: ['site-web', formData.service_type].filter(Boolean),
-        })
-      });
+    const firstName = formData.name.split(' ')[0] || formData.name;
+    const lastName = formData.name.split(' ').slice(1).join(' ') || '';
 
-      setIsSubmitted(true);
-      setTimeout(() => {
-        setIsSubmitted(false);
-        setFormData({ name: '', phone: '', email: '', address: '', service_type: '', message: '' });
-      }, 4000);
+    try {
+      const response = await fetch(
+        `https://api.hsforms.com/submissions/v3/integration/submit/${HUBSPOT_PORTAL_ID}/${HUBSPOT_FORM_ID}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fields: [
+              { name: 'firstname', value: firstName },
+              { name: 'lastname', value: lastName },
+              { name: 'email', value: formData.email },
+              { name: 'phone', value: formData.phone },
+              { name: 'address', value: formData.address },
+              { name: 'message', value: `Service: ${formData.service_type}\n\n${formData.message}` },
+            ],
+            context: {
+              pageUri: window.location.href,
+              pageName: document.title,
+            }
+          })
+        }
+      );
+
+      if (response.ok) {
+        setIsSubmitted(true);
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setFormData({ name: '', phone: '', email: '', address: '', service_type: '', message: '' });
+        }, 4000);
+      } else {
+        setError("Une erreur est survenue. Veuillez réessayer.");
+      }
     } catch (err) {
       setError("Une erreur est survenue. Veuillez réessayer.");
     } finally {
